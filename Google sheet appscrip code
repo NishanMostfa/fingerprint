@@ -1,0 +1,91 @@
+function doGet(e) {
+  Logger.log(JSON.stringify(e));
+  var result = 'Ok';
+
+
+  if (e.parameter == 'undefined') {
+    result = 'No Parameters';
+  } else {
+    var sheet_id = '1fmSHF2V3NjoAGW6bShW7kLisIi2V4mNB8FbPCE8NhAA'; // Spreadsheet ID
+    var sheet = SpreadsheetApp.openById(sheet_id).getActiveSheet();
+    var fingerprintID = e.parameter.fingerID;
+
+
+    if (fingerprintID) {
+      var dataRange = sheet.getDataRange();
+      var dataValues = dataRange.getValues();
+
+
+      var currentDate = new Date(); // Move the declaration here
+
+
+      for (var i = 0; i < dataValues.length; i++) {
+        var row = dataValues[i];
+        if (row[2] == fingerprintID && row[0].toDateString() === currentDate.toDateString()) {
+          result = 'Fingerprint ID already exists in the spreadsheet with the same date';
+          return ContentService.createTextOutput(result);
+        }
+      }
+
+
+      var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+      var sheet = spreadsheet.getActiveSheet();
+      var newRow = sheet.getLastRow() + 1;
+      var formattedDate = Utilities.formatDate(currentDate, spreadsheet.getSpreadsheetTimeZone(), "yyyy-MM-dd");
+      var rowData = [
+        formattedDate, // Date in column A
+        Utilities.formatDate(currentDate, "Asia/Dhaka", 'HH:mm:ss'), // Time in column B
+        fingerprintID // Fingerprint ID in column C
+      ];
+
+
+      sheet.appendRow(rowData);
+      result = 'Fingerprint ID written to column C';
+    } else {
+      result = 'Fingerprint ID parameter missing';
+    }
+  }
+
+
+  return ContentService.createTextOutput(result);
+}
+
+
+//manual input
+
+
+function openLink(sheetUrl, sheetName) {
+  var cellName = "D3";
+  var spreadsheet = SpreadsheetApp.openByUrl(sheetUrl);
+  var sheet = spreadsheet.getSheetByName(sheetName);
+ 
+  if (!sheet) {
+    Browser.msgBox('Sheet with the specified name was not found: ' + sheetName);
+    return;
+  }
+ 
+  var linkCell = sheet.getRange(cellName);
+  var link = linkCell.getValue();
+ 
+  if (link) {
+    link = link.toString().trim(); // Remove leading/trailing whitespaces if any
+    if (link.match(/^(https?|ftp):\/\//)) {
+      var response = UrlFetchApp.fetch(link);
+      if (response.getResponseCode() == 200) {
+        Logger.log("URL executed successfully: " + link);
+      } else {
+        Logger.log("Error executing URL: " + link);
+      }
+    } else {
+      Logger.log("Invalid URL: " + link);
+    }
+  } else {
+    Browser.msgBox('No link found in the specified cell: ' + cellName);
+  }
+}
+
+var sheetUrl = "https://docs.google.com/spreadsheets/d/1fmSHF2V3NjoAGW6bShW7kLisIi2V4mNB8FbPCE8NhAA/edit#gid=0";
+var sheetName = "Manual Input";
+openLink(sheetUrl, sheetName);
+
+}
