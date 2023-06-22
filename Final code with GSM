@@ -1,0 +1,318 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#include <Adafruit_Fingerprint.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#if (defined(__AVR__) || defined(ESP8266)) && !defined(__AVR_ATmega2560__)
+SoftwareSerial mySerial(D6, D7);
+SoftwareSerial SIM800(D3, D2);  //tx,rx
+#else
+#define mySerial Serial1
+#endif
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+Adafruit_Fingerprint finger = Adafruit_Fingerprint(&mySerial);
+int t = 0;
+#define ON_Board_LED 2
+
+
+const char* ssid = "isp";
+const char* password = "12345678";
+
+
+const char* host = "script.google.com";
+const int httpsPort = 443;
+
+
+WiFiClientSecure client;
+String GAS_ID = "AKfycbz3WkJqYSqwj1v80XmSNWBLjc93tqfoJnFTDRZd-2Eezc9sDAJ0P6kpZ-j5thlmpkMh";
+
+
+const int MAX_FINGERPRINTS = 500;            // Maximum number of unique fingerprints to store
+uint16_t fingerprintIDs[MAX_FINGERPRINTS];  // Array to store fingerprint IDs
+int numFingerprints = 0;                    // Number of stored fingerprints
+String phoneNumbers[MAX_FINGERPRINTS];
+
+void addPhoneNumber(int fingerprintID, const char* phoneNumber) {
+  if (fingerprintID >= 0 && fingerprintID < MAX_FINGERPRINTS) {
+    phoneNumbers[fingerprintID] = String(phoneNumber);
+  }
+}
+
+
+void setup() {
+  SIM800.begin(9600);
+  Serial.begin(9600);
+
+  delay(100);
+  lcd.begin();
+  lcd.clear();
+  lcd.setCursor(1, 0);
+  lcd.print("ISP Fingerprint");
+  lcd.setCursor(1, 1);
+  lcd.print("Attendance");
+  WiFi.begin(ssid, password);
+  Serial.println("");
+
+  addPhoneNumber(138, "+8801850734060");  // Associate mobile number with fingerprint ID 0
+  addPhoneNumber(88, "+8801850734060");
+
+
+  pinMode(ON_Board_LED, OUTPUT);
+  digitalWrite(ON_Board_LED, HIGH);
+
+
+  Serial.print("Connecting");
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    digitalWrite(ON_Board_LED, LOW);
+    delay(250);
+    digitalWrite(ON_Board_LED, HIGH);
+    delay(250);
+  }
+  digitalWrite(ON_Board_LED, HIGH);
+  Serial.println("");
+  Serial.print("Successfully connected to: ");
+  Serial.println(ssid);
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
+  Serial.println();
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("WiFi connected!");
+
+
+  client.setInsecure();
+  Serial.println("\n\nAdafruit finger detect test");
+
+
+  finger.begin(57600);
+  delay(5);
+  if (finger.verifyPassword()) {
+    Serial.println("Found fingerprint sensor!");
+  } else {
+    Serial.println("Did not find fingerprint sensor :(");
+    while (1) {
+      delay(1);
+    }
+  }
+
+
+  Serial.println(F("Reading sensor parameters"));
+  finger.getParameters();
+  Serial.print(F("Status: 0x"));
+  Serial.println(finger.status_reg, HEX);
+  Serial.print(F("Sys ID: 0x"));
+  Serial.println(finger.system_id, HEX);
+  Serial.print(F("Capacity: "));
+  Serial.println(finger.capacity);
+  Serial.print(F("Security level: "));
+  Serial.println(finger.security_level);
+  Serial.print(F("Device address: "));
+  Serial.println(finger.device_addr, HEX);
+  Serial.print(F("Packet len: "));
+  Serial.println(finger.packet_len);
+  Serial.print(F("Baud rate: "));
+  Serial.println(finger.baud_rate);
+
+
+  finger.getTemplateCount();
+
+
+  if (finger.templateCount == 0) {
+    Serial.println("Sensor doesn't contain any fingerprint data. Please run the 'enroll' example.");
+  } else {
+    Serial.print("Sensor contains ");
+    Serial.print(finger.templateCount);
+    Serial.println(" templates");
+  }
+}
+
+
+void loop() {
+  getFingerprintID();
+  delay(50);
+}
+
+
+uint8_t getFingerprintID() {
+  uint8_t p = finger.getImage();
+  switch (p) {
+    case FINGERPRINT_OK:
+      Serial.println("Image taken");
+      break;
+    case FINGERPRINT_NOFINGER:
+      Serial.println("No finger detected");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Place finger");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      Serial.println("Communication error");
+      return p;
+    case FINGERPRINT_IMAGEFAIL:
+      Serial.println("Imaging error");
+      return p;
+    default:
+      Serial.println("Unknown error");
+      return p;
+  }
+
+
+  p = finger.image2Tz();
+  switch (p) {
+    case FINGERPRINT_OK:
+      Serial.println("Image converted");
+      break;
+    case FINGERPRINT_IMAGEMESS:
+      Serial.println("Image too messy");
+      return p;
+    case FINGERPRINT_PACKETRECIEVEERR:
+      Serial.println("Communication error");
+      return p;
+    case FINGERPRINT_FEATUREFAIL:
+      Serial.println("Could not find fingerprint features");
+      return p;
+    case FINGERPRINT_INVALIDIMAGE:
+      Serial.println("Could not find fingerprint features");
+      return p;
+    default:
+      Serial.println("Unknown error");
+      return p;
+  }
+
+
+  p = finger.fingerSearch();
+  if (p == FINGERPRINT_OK) {
+    if (!isFingerprintSent(finger.fingerID)) {
+      Serial.println("Found a print match!");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("ID Found!");
+      lcd.setCursor(0, 1);
+      lcd.print("Sending Data!");
+      sendData(finger.fingerID);
+      sendsms(finger.fingerID);
+      addSentFingerprint(finger.fingerID);
+    } else {
+      Serial.println("Fingerprint already sent");
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("ID already sent");
+    }
+  } else if (p == FINGERPRINT_PACKETRECIEVEERR) {
+    Serial.println("Communication error");
+    return p;
+  } else if (p == FINGERPRINT_NOTFOUND) {
+    Serial.println("Did not find a match");
+    lcd.begin();
+    lcd.clear();
+    lcd.setCursor(1, 0);
+    lcd.print("Not Matched");
+    return p;
+  } else {
+    Serial.println("Unknown error");
+    return p;
+  }
+
+
+  Serial.print("Found ID #");
+  Serial.print(finger.fingerID);
+  Serial.print(" with confidence of ");
+  Serial.println(finger.confidence);
+
+
+  return finger.fingerID;
+}
+
+
+void sendData(int fingerprintID) {
+  Serial.println("==========");
+  Serial.print("Connecting to ");
+  Serial.println(host);
+
+
+  if (!client.connect(host, httpsPort)) {
+    Serial.println("Connection failed");
+    return;
+  }
+
+
+  String url = "/macros/s/" + GAS_ID + "/exec?fingerID=" + String(fingerprintID);
+  Serial.print("Requesting URL: ");
+  Serial.println(url);
+
+
+  client.print(String("GET ") + url + " HTTP/1.1\r\n" + "Host: " + host + "\r\n" + "User-Agent: BuildFailureDetectorESP8266\r\n" + "Connection: close\r\n\r\n");
+
+
+  Serial.println("Request sent");
+
+
+  while (client.connected()) {
+    String line = client.readStringUntil('\n');
+    if (line == "\r") {
+      Serial.println("Headers received");
+      break;
+    }
+  }
+
+
+  String line = client.readStringUntil('\n');
+  if (line.startsWith("OK")) {
+    Serial.println("Data sent successfully");
+  } else {
+    Serial.println("Sending data failed");
+  }
+
+
+  Serial.println("Closing connection");
+  Serial.println("==========");
+}
+
+
+bool isFingerprintSent(int fingerprintID) {
+  for (int i = 0; i < numFingerprints; i++) {
+    if (fingerprintIDs[i] == fingerprintID) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void addSentFingerprint(int fingerprintID) {
+  if (numFingerprints < MAX_FINGERPRINTS) {
+    fingerprintIDs[numFingerprints] = fingerprintID;
+    numFingerprints++;
+  }
+}
+
+void sendsms(int fingerprintID) {
+  String phoneNumber = phoneNumbers[fingerprintID];
+  if (!phoneNumber.isEmpty()) {
+    Serial.println("Sending SMS");
+    lcd.clear();
+    lcd.setCursor(1, 0);
+    lcd.print("Sending SMS");
+
+    delay(2000);
+
+    SIM800.println("AT");
+    delay(1000);
+    SIM800.println("AT+CMGF=1");  // To send SMS in Text Mode
+    delay(1000);
+    SIM800.println("AT+CMGS=\"" + String(phoneNumber) + "\"\r");
+    delay(100);
+    SIM800.println("Student Present (FROM ISP)");  // The content of the message
+
+    delay(200);
+    SIM800.write(26);  // The stopping character
+
+    lcd.clear();
+    lcd.setCursor(1, 0);
+    lcd.print("SMS sent");
+  } else {
+    Serial.println("No mobile number associated with fingerprint ID " + String(fingerprintID));
+  }
+}
