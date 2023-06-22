@@ -23,7 +23,7 @@ const int httpsPort = 443;
 
 
 WiFiClientSecure client;
-String GAS_ID = "AKfycbxDnfPY2YpSAGxodDIF_GHvevw-BSL4YuR3E-Mbo0Zts09uVitC9pqMXZGZrWpPTlzv";
+String GAS_ID = "AKfycbz3WkJqYSqwj1v80XmSNWBLjc93tqfoJnFTDRZd-2Eezc9sDAJ0P6kpZ-j5thlmpkMh";
 
 
 const int MAX_FINGERPRINTS = 10;  // Maximum number of unique fingerprints to store
