@@ -3,7 +3,7 @@
 #include <Adafruit_Fingerprint.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
-#if (defined(__AVR__) || defined(ESP8266)) && !defined(__AVR_ATmega2560__)
+#if (defined(__AVR__) || defined(ESP8266)) && !defined(__AVR_ATmega2560__) 
 SoftwareSerial mySerial(D6, D7);
 #else
 #define mySerial Serial1
