@@ -14,8 +14,8 @@ int t = 0;
 #define ON_Board_LED 2
 
 
-const char* ssid = "Mostafa mansion";
-const char* password = "bolajabena";
+const char* ssid = "isp";
+const char* password = "12345678";
 
 
 const char* host = "script.google.com";
@@ -26,7 +26,7 @@ WiFiClientSecure client;
 String GAS_ID = "AKfycbz3WkJqYSqwj1v80XmSNWBLjc93tqfoJnFTDRZd-2Eezc9sDAJ0P6kpZ-j5thlmpkMh";
 
 
-const int MAX_FINGERPRINTS = 10;  // Maximum number of unique fingerprints to store
+const int MAX_FINGERPRINTS = 300;  // Maximum number of unique fingerprints to store
 uint16_t fingerprintIDs[MAX_FINGERPRINTS];  // Array to store fingerprint IDs
 int numFingerprints = 0;  // Number of stored fingerprints
 
