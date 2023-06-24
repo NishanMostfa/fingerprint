@@ -14,13 +14,17 @@ function doGet(e) {
       var dataValues = dataRange.getValues();
 
       var currentDate = new Date(); // Move the declaration here
+      var currentDateEntries = dataValues.filter(function(row) {
+        return row[0].toDateString() === currentDate.toDateString();
+      });
 
-      for (var i = 0; i < dataValues.length; i++) {
-        var row = dataValues[i];
-        if (row[2] == fingerprintID && row[0].toDateString() === currentDate.toDateString()) {
-          result = 'Fingerprint ID already exists in the spreadsheet with the same date';
-          return ContentService.createTextOutput(result);
-        }
+      var isDuplicate = currentDateEntries.some(function(row) {
+        return row[2] === fingerprintID;
+      });
+
+      if (isDuplicate) {
+        result = 'Fingerprint ID already exists in the spreadsheet with the same date';
+        return ContentService.createTextOutput(result);
       }
 
       var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
@@ -42,6 +46,7 @@ function doGet(e) {
 
   return ContentService.createTextOutput(result);
 }
+
 
 
 //manual input
