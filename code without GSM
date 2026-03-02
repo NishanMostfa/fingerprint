@@ -23,7 +23,7 @@ const int httpsPort = 443;
 
 
 WiFiClientSecure client;
-String GAS_ID = "AKfycbz3WkJqYSqwj1v80XmSNWBLjc93tqfoJnFTDRZd-2Eezc9sDAJ0P6kpZ-j5thlmpkMh";
+String GAS_ID = "AKfycbzPH4YclMOkAe0itdL3MD176423WSIJYZqMiMmi3W6L5MoDZ-PeS1eB8c18znV7tZXT";
 
 
 const int MAX_FINGERPRINTS = 300;  // Maximum number of unique fingerprints to store
@@ -34,7 +34,7 @@ int numFingerprints = 0;  // Number of stored fingerprints
 void setup() {
   Serial.begin(9600);
   delay(100);
-  lcd.begin();
+  // lcd.begin();
   lcd.clear();
   lcd.setCursor(1, 0);
   lcd.print("ISP Fingerprint");
@@ -225,13 +225,17 @@ void sendData(int fingerprintID) {
   Serial.println("Request sent");
 
 
-  while (client.connected()) {
-    String line = client.readStringUntil('\n');
-    if (line == "\r") {
-      Serial.println("Headers received");
-      break;
-    }
-  }
+String response = "";
+while (client.available()) {
+  response += client.readString();
+}
+Serial.println(response);
+
+if (response.indexOf("Fingerprint ID written") >= 0) {
+  Serial.println("Data sent successfully");
+} else {
+  Serial.println("Sending data failed");
+}
 
 
   String line = client.readStringUntil('\n');
