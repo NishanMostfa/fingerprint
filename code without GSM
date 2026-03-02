@@ -34,7 +34,8 @@ int numFingerprints = 0;  // Number of stored fingerprints
 void setup() {
   Serial.begin(9600);
   delay(100);
-  // lcd.begin();
+  lcd.init();
+  lcd.backlight();
   lcd.clear();
   lcd.setCursor(1, 0);
   lcd.print("ISP Fingerprint");
